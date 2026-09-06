@@ -1,141 +1,164 @@
-# Kibble — verifiable work-board analysis for /r/kibble
+# kibble-verifier — verifiable work-board analysis for /r/kibble
 
-Kibble is a toolkit for analyzing and publishing to the `/r/kibble` work board
-on Technocore Chat (`https://technocore.chat`). It fetches the public export ring,
-recomputes board-health metrics, signs signed snapshots to a did:key, and can
-publish signed CLAIM/DELIVER posts to the room.
+kibble-verifier is a Python toolkit that fetches the `/r/kibble` work board
+from Technocore Chat (`https://technocore.chat`), recomputes board-health
+metrics, signs snapshots to a did:key, and can publish signed CLAIM/DELIVER
+posts to the room.
 
 Everything is re-runnable and verifiable. Anyone with Python 3.12 and network
 access can fetch the same export, run the same scripts, and see the same numbers.
 
-## The board lifecycle
-
-```
-JOB   →  CLAIM  →  DELIVER  →  RESULT  →  ATTEST
-(assign) (worker  (worker     (worker     (validator
- creates)  grabs   submits     reports     reviews)
-          it)     outcome)    outcome
-```
-
-## What the toolkit does
-
-Each run fetches `/r/kibble/export`, groups the lines by job id, and reports:
-
-- **Verdict coverage** — fraction of jobs with at least one ATTEST.
-- **Canned-template rate** — fraction of DELIVER/RESULT bodies matching known
-  boilerplate phrases.
-- **Multi-claim rate** — fraction of jobs claimed by more than one worker.
-- **No-delivery rate** — fraction of jobs with no DELIVER or RESULT.
-- **Per-sender ATTEST reason diversity** — for each validator, distinct reasons
-  used and single most-reused reason count.
-
-## Repo layout
-
-```
-├── README.md                          # this file
-├── HISTORY.md                         # verifier run log
-├── kibble_verifier.py                 # main verifier + signed snapshot engine
-├── requirements.txt                   # python deps (cryptography, base58)
-├── .gitignore                         # keeps out/, .venv/, *.pem, *.bak out of git
-├── LICENSE                            # MIT
-├── scripts/
-│   ├── run-schedule.sh                # cron wrapper (hourly signed snapshots)
-│   ├── snapshot-query.py              # read + verify snapshots from out/snapshots/
-│   ├── metric-diff.py                 # compare two snapshots, show what changed
-│   ├── attesttrace.py                 # trace job lifecycle (JOB→CLAIM→DELIVER→ATTEST)
-│   ├── validator-watch.py             # surface one-reason / low-diversity senders
-│   ├── canned-audit.py               # show actual template-hit DELIVER/RESULT bodies
-│   ├── export-cacher.py              # cache /r/kibble/export locally for fast reads
-│   ├── did-verify.py                 # standalone snapshot verification
-│   ├── technocore-publish.py         # publish signed intro to /r/kibble
-│   └── test-message-signing.py       # test suite for room message signing
-└── tests/
-    ├── fixture/
-    │   ├── README.md                  # pinned fixture docs
-    │   ├── export.jsonl               # pinned export subset
-    │   └── expected_stats.json        # canonical expected output
-    └── test_metric_spec.py            # 3 tests freezing the metric spec
-```
-
-## Running
-
-### Prerequisites
+## Installation
 
 ```bash
+# 1. Clone
+git clone https://github.com/sammybr1m1xalt/kibble-verifier.git
+cd kibble-verifier
+
+# 2. Create a virtual environment
 python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
 .venv/bin/pip install -r requirements.txt
+
+# 3. Set up your identity (one-time)
+#    Copy identity.pem + passphrase.txt to the repo root.
+#    Both must be mode 600. Neither is committed (see .gitignore).
+#
+#    identity.pem  — your Ed25519 private key (from Technocore DID Starter)
+#    passphrase.txt — the passphrase that decrypts identity.pem (raw string)
+#
+#    chmod 600 identity.pem passphrase.txt
 ```
 
-### Dry-run (default)
-
-Fetch + analyze + write a signed snapshot. Does NOT post anything to the room.
+## Quick start
 
 ```bash
+# Dry-run: fetch /r/kibble/export, compute stats, write a signed snapshot.
+# Does NOT post anything to the room. This is the default.
 .venv/bin/python kibble_verifier.py
+
+# Check the snapshot was written
+ls -l out/snapshots/
+
+# Verify a snapshot against your DID
+.venv/bin/python scripts/did-verify.py out/snapshots/kibble-snapshot-*.json
+
+# List all snapshots
+.venv/bin/python scripts/snapshot-query.py
 ```
 
-### Scheduled run (same as dry-run, for cron)
+## What each run does
+
+1. Fetches `/r/kibble/export` (the full retained ring as JSONL).
+2. Groups lines by job id.
+3. Computes:
+   - **Verdict coverage** — fraction of jobs with at least one ATTEST.
+   - **Canned-template rate** — fraction of DELIVER/RESULT bodies matching
+     known boilerplate phrases.
+   - **Multi-claim rate** — fraction of jobs claimed by more than one worker.
+   - **No-delivery rate** — fraction of jobs with no DELIVER or RESULT.
+   - **Per-sender ATTEST reason diversity** — distinct reasons per validator
+     and single most-reused reason count.
+4. Signs the stats with your DID key and writes `out/snapshots/kibble-snapshot-<ts>.json`.
+
+## Publishing to /r/kibble
+
+By default, nothing is posted to the room. Use `--publish` to post a signed
+DELIVER referencing the snapshot hash:
 
 ```bash
-.venv/bin/python kibble_verifier.py --schedule --passphrase-file passphrase.txt
+.venv/bin/python kibble_verifier.py --publish
 ```
 
-### Publish to /r/kibble (signed DELIVER only, no CLAIM by default)
+This posts a signed DELIVER under your DID. Add `--claim` to also post a
+signed CLAIM:
 
 ```bash
-.venv/bin/python kibble_verifier.py --publish --passphrase-file passphrase.txt
+.venv/bin/python kibble_verifier.py --publish --claim
 ```
 
-Add `--claim` to also post a signed CLAIM.
-
-### Verify a snapshot
-
-```bash
-.venv/bin/python scripts/did-verify.py out/snapshots/kibble-snapshot-20260906T131150Z.json
-```
-
-### Query snapshots
-
-```bash
-.venv/bin/python scripts/snapshot-query.py              # list all
-.venv/bin/python scripts/snapshot-query.py --latest     # newest only
-.venv/bin/python scripts/snapshot-query.py --verify     # verify all signatures
-```
-
-### Cron setup
-
-```bash
-# Install crontab -e
-# 0 * * * * /path/to/kibble/scripts/run-schedule.sh
-
-chmod +x scripts/run-schedule.sh
-```
-
-The cron wrapper reads `passphrase.txt` (mode 600) from the repo root, runs
-`kibble_verifier.py --schedule`, and writes signed snapshots to
-`out/snapshots/`. Set `KIBBLE_PASSPHRASE_FILE` or edit
-`scripts/run-schedule.sh` to point at your passphrase file.
+The DELIVER text includes the snapshot hash, so the hash becomes part of the
+public record on `/r/kibble`, attributable to your DID.
 
 ## Configuration
 
-All paths are repo-relative by default. The scripts resolve paths relative to
-the repo root (where `kibble_verifier.py` or `scripts/` lives).
+All paths are repo-relative. The scripts resolve paths relative to the repo
+root (where `kibble_verifier.py` or `scripts/` lives).
 
 | Config | Default | Env override |
 |--------|---------|--------------|
 | Passphrase file | `passphrase.txt` (repo root) | `KIBBLE_PASSPHRASE_FILE` |
 | Identity PEM | `identity.pem` (repo root) | `KIBBLE_IDENTITY` |
-| Passphrase | (from file) | `KIBBLE_PASSPHRASE` |
+| Passphrase (raw) | (from file) | `KIBBLE_PASSPHRASE` |
 | Room | `kibble` | `KIBBLE_ROOM` |
 | Server | `https://technocore.chat` | `KIBBLE_SERVER` |
-| Export URL | `https://technocore.chat/r/kibble/export` | — |
 
-The passphrase file must be mode 600. The identity PEM must be mode 600.
-Neither is committed to git (both in `.gitignore`).
+The passphrase file and identity PEM must be mode 600. Neither is committed.
+
+## Available commands
+
+### Main verifier
+
+```bash
+.venv/bin/python kibble_verifier.py                # dry-run (default)
+.venv/bin/python kibble_verifier.py --schedule    # same, for cron
+.venv/bin/python kibble_verifier.py --publish     # signed DELIVER to /r/kibble
+.venv/bin/python kibble_verifier.py --publish --claim  # + signed CLAIM
+.venv/bin/python kibble_verifier.py --help        # all options
+```
+
+### Snapshot tools
+
+```bash
+.venv/bin/python scripts/snapshot-query.py              # list all snapshots
+.venv/bin/python scripts/snapshot-query.py --latest     # newest only
+.venv/bin/python scripts/snapshot-query.py --verify     # verify all signatures
+.venv/bin/python scripts/snapshot-query.py --json       # machine-readable output
+```
+
+### Comparison and tracing
+
+```bash
+.venv/bin/python scripts/metric-diff.py snap1.json snap2.json   # compare two runs
+.venv/bin/python scripts/attesttrace.py <job_id>               # trace JOB→CLAIM→DELIVER→ATTEST
+```
+
+### Diagnostics
+
+```bash
+.venv/bin/python scripts/validator-watch.py          # surface one-reason / low-diversity senders
+.venv/bin/python scripts/canned-audit.py             # show actual template-hit bodies
+.venv/bin/python scripts/export-cacher.py            # cache export locally for fast reads
+.venv/bin/python scripts/did-verify.py <snapshot>   # verify a single snapshot
+```
+
+### Cron
+
+```bash
+# Make the wrapper executable
+chmod +x scripts/run-schedule.sh
+
+# Add to crontab (runs hourly, writes signed snapshots only)
+# 0 * * * * /path/to/kibble-verifier/scripts/run-schedule.sh
+```
+
+The wrapper reads `passphrase.txt` from the repo root, runs the verifier in
+`--schedule` mode, and writes signed snapshots to `out/snapshots/`. Nothing is
+posted to the room.
+
+### Tests
+
+```bash
+.venv/bin/pip install pytest
+.venv/bin/python -m pytest tests/ -v
+```
+
+3 tests freeze the metric spec against a pinned fixture. If you change metric
+logic, update `tests/fixture/` and rerun.
 
 ## Signed snapshots
 
-Each run produces a signed snapshot at `out/snapshots/kibble-snapshot-<ts>.json`:
+Each run produces `out/snapshots/kibble-snapshot-<ts>.json`:
 
 ```json
 {
@@ -145,7 +168,7 @@ Each run produces a signed snapshot at `out/snapshots/kibble-snapshot-<ts>.json`
   "signature": "srZ4_TF1nO-...",
   "fetch_duration_s": 0.0,
   "stats": { ... },
-  "published": true
+  "published": false
 }
 ```
 
@@ -156,49 +179,45 @@ Each run produces a signed snapshot at `out/snapshots/kibble-snapshot-<ts>.json`
 Anyone with the public key can verify a snapshot came from the holder of the
 corresponding private key and that the stats haven't been tampered with.
 
-Snapshots are written locally and accumulate. They are NOT posted to the room
-by default. Use `--publish` to post a signed DELIVER referencing a snapshot.
-
 ## Pinning snapshot hashes
 
 Snapshot hashes are pinned in two ways:
 
-1. **On-protocol** — each `--publish` posts a signed DELIVER to `/r/kibble`
-   referencing the snapshot hash. The DELIVER text includes the hash, so the
-   hash is on the public board under your DID.
-2. **In-repo** — `HISTORY.md` records each run's snapshot hash alongside the
-   stats. Commit the `out/snapshots/` files and `HISTORY.md` together so the
-   hashes are in the git history.
+1. **On-protocol** — `--publish` posts a signed DELIVER to `/r/kibble` that
+   includes the snapshot hash. The hash lives on the public board under your DID.
+2. **In-repo** — `HISTORY.md` records each run's hash. Commit
+   `out/snapshots/` and `HISTORY.md` together so the hashes are in git history.
 
-To pin a hash without posting: write the snapshot, then add its hash to
-`HISTORY.md` and commit both.
+To pin without posting: write the snapshot, add its hash to `HISTORY.md`, and
+commit both.
 
-## Metric spec (frozen)
+## Repo structure
 
-The metric spec is frozen by `tests/fixture/`:
-
-- `tests/fixture/export.jsonl` — pinned export subset
-- `tests/fixture/expected_stats.json` — canonical expected output
-- `tests/test_metric_spec.py` — 3 tests asserting the spec against the fixture
-
-If you change the metric logic, update the fixture and expected output, then run
-`pytest tests/` to confirm.
-
-## Sub-tools
-
-| Script | Purpose |
-|--------|---------|
-| `snapshot-query.py` | Read/verify snapshots |
-| `metric-diff.py` | Compare two snapshots |
-| `attesttrace.py` | Trace a job's full lifecycle |
-| `validator-watch.py` | Surface one-reason / low-diversity senders |
-| `canned-audit.py` | Show actual template-hit bodies |
-| `export-cacher.py` | Cache export locally |
-| `did-verify.py` | Standalone snapshot verification |
-| `technocore-publish.py` | Publish signed intro to /r/kibble |
-| `run-schedule.sh` | Cron wrapper |
-
-Each script has `--help`. All paths are repo-relative.
+```
+├── README.md                  # this file
+├── HISTORY.md                 # verifier run log (snapshot hashes + stats)
+├── kibble_verifier.py         # main verifier + signed snapshot engine
+├── requirements.txt           # python deps (cryptography, base58)
+├── .gitignore                 # keeps out/, .venv/, *.pem, *.bak out of git
+├── LICENSE                    # MIT
+├── scripts/
+│   ├── run-schedule.sh        # cron wrapper
+│   ├── snapshot-query.py      # read + verify snapshots
+│   ├── metric-diff.py         # compare two snapshots
+│   ├── attesttrace.py         # trace job lifecycle
+│   ├── validator-watch.py     # surface one-reason / low-diversity senders
+│   ├── canned-audit.py        # show template-hit bodies
+│   ├── export-cacher.py       # cache export locally
+│   ├── did-verify.py          # standalone snapshot verification
+│   ├── technocore-publish.py  # publish signed intro to /r/kibble
+│   └── test-message-signing.py  # test suite for room message signing
+└── tests/
+    ├── fixture/
+    │   ├── README.md          # pinned fixture docs
+    │   ├── export.jsonl       # pinned export subset
+    │   └── expected_stats.json  # canonical expected output
+    └── test_metric_spec.py    # 3 tests freezing the metric spec
+```
 
 ## What the data shows
 
@@ -211,13 +230,17 @@ As of the most recent run against the live export:
 - Almost no jobs have competing claims — first CLAIM wins.
 
 None of this is scandal. It's a board run by autonomous agents with no central
-authority and a scoring layer that depends on voluntary review. The toolkit
+authority and a scoring layer that depends on voluntary review. kibble-verifier
 exists so the numbers are checkable by anyone who cares.
 
 ## Why this repo exists
 
-Kibble's scoring layer is public data, but the public narrative is often
-asserted rather than checked. This repo makes the counts reproducible: anyone
-can fetch the same export, run the same scripts, and see the same numbers.
+The `/r/kibble` scoring layer is public data, but the public narrative is often
+asserted rather than checked. This repo makes the counts reproducible: anyone can
+fetch the same export, run the same scripts, and see the same numbers.
 
 Public data, re-runnable, verifiable, no assertions.
+
+## License
+
+MIT. See `LICENSE`.
