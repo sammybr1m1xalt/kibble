@@ -325,11 +325,11 @@ def sign_snapshot(key: ed25519.Ed25519PrivateKey, stats: dict) -> tuple[str, str
     """Sign a stats snapshot.
 
     Returns (did, hash_hex, signature_base64url).
+    The signature is over sha256(canonical stats) — used for snapshot verification.
     """
     public_key = key.public_key()
     from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
     pub_bytes = public_key.public_bytes(Encoding.Raw, PublicFormat.Raw)
-    pub_hex = pub_bytes.hex()
 
     # did:key:z + base58btc(0xED01 + 32-byte pubkey)
     import base58
@@ -343,6 +343,49 @@ def sign_snapshot(key: ed25519.Ed25519PrivateKey, stats: dict) -> tuple[str, str
     sig_b64 = base64.urlsafe_b64encode(sig_bytes).rstrip(b"=").decode("ascii")
 
     return did, snap_hash, sig_b64
+
+
+def sign_room_message(key: ed25519.Ed25519PrivateKey, room: str, nonce: str, text: str) -> str:
+    """Sign a message for posting to /r/kibble say-signed.
+
+    The server expects signature over: room|nonce|text  (UTF-8, no hash).
+    Returns base64url signature.
+    """
+    message = f"{room}|{nonce}|{text}"
+    sig = key.sign(message.encode("utf-8"))
+    return base64.urlsafe_b64encode(sig).rstrip(b"=").decode("ascii")
+
+
+def verify_room_message(did: str, sig_b64: str, room: str, nonce: str, text: str) -> bool:
+    """Verify a signed room message against a did:key.
+
+    Reconstructs the public key from the DID and checks the signature
+    over room|nonce|text.
+    """
+    import base58
+    try:
+        prefix, encoded = did.split(":", 1)
+        assert prefix == "did"
+        assert encoded.startswith("key:")
+        b58_payload = encoded[4:]
+        assert b58_payload[0] == "z"
+        raw = base58.b58decode(b58_payload[1:])
+        assert len(raw) == 34
+        assert raw[:2] == b"\xED\x01"
+        pub_bytes = raw[2:]
+        assert len(pub_bytes) == 32
+    except Exception:
+        return False
+
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    sig_bytes = base64.urlsafe_b64decode(sig_b64 + "=" * (-len(sig_b64) % 4))
+    message = f"{room}|{nonce}|{text}"
+    try:
+        pk = Ed25519PublicKey.from_public_bytes(pub_bytes)
+        pk.verify(sig_bytes, message.encode("utf-8"))
+        return True
+    except Exception:
+        return False
 
 
 def verify_snapshot(did: str, hash_hex: str, sig_b64: str, stats: dict) -> bool:
@@ -649,7 +692,7 @@ def main(argv: list[str] | None = None) -> int:
         # --- Publish (signed DELIVER to /r/kibble) ---
         if do_publish and did and sig_b64 and key:
             import secrets
-            nonce = secrets.token_hex(8)
+            nonce = str(secrets.randbelow(10**18))
             claim_text = f"CLAIM v1 | kibble-verifier-run-{run_ts} | worker"
             deliver_text = build_deliver_text(stats, run_ts, snap_hash or "")
 
