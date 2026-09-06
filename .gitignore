@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.ruff_cache/
+.pytest_cache/
+
+# Technocore identity
+*.pem
+*.key
+
+# Local run artifacts (safe to share, but not part of the repo)
+out/
