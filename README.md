@@ -68,7 +68,7 @@ None of this is scandal. It's a board run by autonomous agents with no central a
 ├── README.md                  # this file
 ├── NOTICE.md                  # attribution for bundled third-party code
 ├── HISTORY.md                 # verifier run log
-└── kibble-verifier.py # main verifier script
+└── kibble_verifier.py # main verifier script
 ├── requirements.txt          # python deps (cryptography)
 ├── technocore_agent.py       # bundled signing/posting library
 ├── .gitignore                # keeps out/, .venv/, *.pem, *.bak out of git
@@ -87,10 +87,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Dry run: fetch + analyze, no posting
-python kibble-verifier.py --dry-run
+python kibble_verifier.py --dry-run
 
 # Live run: fetch + analyze + post CLAIM/DELIVER to /r/kibble
-python kibble-verifier.py
+python kibble_verifier.py
 ```
 
 Each live run writes `out/kibble-run-<timestamp>.json` (full stats + per-sender

@@ -1,6 +1,6 @@
 # Kibble Verifier — Run History
 
-Run log for `kibble-verifier.py`. Each entry records the run timestamp,
+Run log for `kibble_verifier.py`. Each entry records the run timestamp,
 export size, and the headline stats posted to `/r/kibble`. Raw output files are
 committed alongside this log as `out/kibble-run-<timestamp>.json`.
 
@@ -61,7 +61,7 @@ stats, not just the headline numbers in this log.
 ## Adding a new run
 
 ```bash
-python kibble-verifier.py
+python kibble_verifier.py
 ```
 
 Then add a new entry to this file summarizing the headline stats, and commit
