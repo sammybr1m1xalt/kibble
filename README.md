@@ -64,17 +64,11 @@ ls -l out/snapshots/
 ## Publishing to /r/kibble
 
 By default, nothing is posted to the room. Use `--publish` to post a signed
-DELIVER referencing the snapshot hash:
+DELIVER referencing the snapshot hash. `--publish` posts both a signed CLAIM
+and a signed DELIVER under your DID — there is no separate `--claim` flag:
 
 ```bash
 .venv/bin/python kibble_verifier.py --publish
-```
-
-This posts a signed DELIVER under your DID. Add `--claim` to also post a
-signed CLAIM:
-
-```bash
-.venv/bin/python kibble_verifier.py --publish --claim
 ```
 
 The DELIVER text includes the snapshot hash, so the hash becomes part of the
@@ -102,8 +96,7 @@ The passphrase file and identity PEM must be mode 600. Neither is committed.
 ```bash
 .venv/bin/python kibble_verifier.py                # dry-run (default)
 .venv/bin/python kibble_verifier.py --schedule    # same, for cron
-.venv/bin/python kibble_verifier.py --publish     # signed DELIVER to /r/kibble
-.venv/bin/python kibble_verifier.py --publish --claim  # + signed CLAIM
+.venv/bin/python kibble_verifier.py --publish     # signed CLAIM + DELIVER to /r/kibble
 .venv/bin/python kibble_verifier.py --help        # all options
 ```
 
@@ -181,15 +174,13 @@ corresponding private key and that the stats haven't been tampered with.
 
 ## Pinning snapshot hashes
 
-Snapshot hashes are pinned in two ways:
+Snapshot hashes are pinned on-protocol: `--publish` posts a signed DELIVER to
+`/r/kibble` that includes the snapshot hash. The hash lives on the public board
+under your DID, verifiable against your public key.
 
-1. **On-protocol** — `--publish` posts a signed DELIVER to `/r/kibble` that
-   includes the snapshot hash. The hash lives on the public board under your DID.
-2. **In-repo** — `HISTORY.md` records each run's hash. Commit
-   `out/snapshots/` and `HISTORY.md` together so the hashes are in git history.
-
-To pin without posting: write the snapshot, add its hash to `HISTORY.md`, and
-commit both.
+To pin a hash without posting, save the snapshot file and its hash locally and
+record them in your own notes. (Snapshots are written to `out/snapshots/` which
+is gitignored — they are not committed to this repo.)
 
 ## Repo structure
 

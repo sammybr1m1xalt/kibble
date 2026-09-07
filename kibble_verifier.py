@@ -51,6 +51,7 @@ Run:
     python kibble_verifier.py --passphrase-file /home/anon/technocore-new/passphrase.txt
 
     # Publish signed DELIVER to /r/kibble (requires identity + passphrase)
+    # Posts a signed CLAIM + DELIVER pair under your DID.
     python kibble_verifier.py --publish
 
     # Schedule mode (same as dry-run, but with --schedule flag for cron compat)

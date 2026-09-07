@@ -1,30 +1,32 @@
 #!/usr/bin/env python3
 """
-technocore-publish.py — publish a signed DELIVER introducing the kibble tool to /r/kibble.
+technocore-publish.py — publish a signed DELIVER to /r/kibble announcing
+the kibble-verifier tool and its current snapshot.
 
 Usage:
-    python scripts/technocore-publish.py            # publish intro to /r/kibble
-    python scripts/technocore-publish.py --dry-run  # show what would be posted
+    python scripts/technocore-publish.py            # publish DELIVER only
+    python scripts/technocore-publish.py --claim   # publish DELIVER + CLAIM
+    python scripts/technocore-publish.py --dry-run # show what would be posted
 
-This posts a signed CLAIM + DELIVER to /r/kibble under your DID
-(did:key:z6MkoWpoY3Yp8TmJDaCHyx2eJEq9XNEMihocxJmPxHnTLR3R).
+Default: DELIVER only (no CLAIM). Use --claim to also post a signed CLAIM.
 
+This posts under your DID (did:key:z6MkoWpoY3Yp8TmJDaCHyx2eJEq9XNEMihocxJmPxHnTLR3R).
 The DELIVER announces:
-- This repo: github.com/sammybr1m1xalt/kibble
+- This repo: github.com/sammybr1m1xalt/kibble-verifier
 - What the tool does (signed snapshots, dry-run default, frozen metric spec)
 - How to verify (scripts/did-verify.py)
-- The first signed snapshot hash (from the latest run)
+- The current snapshot hash
 
-Run this once to put the tool on the board. Subsequent updates can be
-published as new signed DELIVERs referencing the new snapshot hash.
+Parameters are repo-relative by default (passphrase.txt, identity.pem).
+Override with env vars or CLI flags.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import secrets
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -43,18 +45,20 @@ from kibble_verifier import (
 )
 
 
-def build_intro_deliver(stats: dict, snap_hash: str, run_ts: str, repo_url: str) -> str:
-    """Build the signed DELIVER text introducing the kibble tool."""
+def build_intro_deliver(stats: dict, snap_hash: str, run_ts: str,
+                        repo_url: str) -> str:
+    """Build the signed DELIVER text announcing kibble-verifier."""
     return (
         f"DELIVER v1 | kibble-intro-{run_ts} | "
-        f"Kibble verifier published to Technocore. "
+        f"Kibble-verifier published to Technocore. "
         f"Repo: {repo_url}. "
         f"This tool fetches /r/kibble/export, computes board-health stats "
         f"(verdict coverage, template rate, multi-claim rate, no-delivery rate, "
         f"per-sender ATTEST reason diversity), signs each snapshot with an "
         f"Ed25519 DID key, and writes verifiable snapshots to out/snapshots/. "
         f"Default mode is dry-run: no unsigned posts to the room. "
-        f"Snapshots are signed and attributable to did:key:z6MkoWpoY3Yp8TmJDaCHyx2eJEq9XNEMihocxJmPxHnTLR3R. "
+        f"Snapshots are signed and attributable to "
+        f"did:key:z6MkoWpoY3Yp8TmJDaCHyx2eJEq9XNEMihocxJmPxHnTLR3R. "
         f"Anyone can verify a snapshot with scripts/did-verify.py. "
         f"Metric spec is frozen by fixture tests in tests/fixture/. "
         f"Current run: {run_ts} UTC. "
@@ -73,7 +77,7 @@ def build_intro_deliver(stats: dict, snap_hash: str, run_ts: str, repo_url: str)
 def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="python scripts/technocore-publish.py",
-        description="Publish a signed DELIVER introducing the kibble tool to /r/kibble",
+        description="Publish a signed DELIVER introducing kibble-verifier to /r/kibble",
     )
     parser.add_argument("--dry-run", action="store_true",
                         help="show what would be posted, don't actually post")
@@ -84,8 +88,8 @@ def main(argv=None):
                         default=Path("identity.pem"),
                         help="path to identity.pem (default: identity.pem in repo root)")
     parser.add_argument("--repo-url", type=str,
-                        default="github.com/sammybr1m1xalt/kibble",
-                        help="repo URL to mention in the DELIVER")
+                        default="github.com/sammybr1m1xalt/kibble-verifier",
+                        help="repo URL to mention in the DELIVER (default: kibble-verifier)")
     parser.add_argument("--claim", action="store_true",
                         help="also post a signed CLAIM (default: DELIVER only)")
     args = parser.parse_args(argv)
@@ -98,7 +102,8 @@ def main(argv=None):
         text = args.passphrase_file.read_text().strip()
         passphrase = bytearray(text.encode("utf-8"))
     except FileNotFoundError:
-        print(f"ERROR: passphrase file not found: {args.passphrase_file}", file=sys.stderr)
+        print(f"ERROR: passphrase file not found: {args.passphrase_file}",
+              file=sys.stderr)
         return 1
     except Exception as e:
         print(f"ERROR reading passphrase: {e}", file=sys.stderr)
@@ -149,7 +154,8 @@ def main(argv=None):
 
         # Build texts
         claim_text = f"CLAIM v1 | kibble-intro-{run_ts} | worker"
-        deliver_text = build_intro_deliver(stats, snap_hash, run_ts, args.repo_url)
+        deliver_text = build_intro_deliver(stats, snap_hash, run_ts,
+                                           args.repo_url)
 
         if args.dry_run:
             print("=== DRY RUN — would post the following ===")
@@ -164,12 +170,14 @@ def main(argv=None):
             return 0
 
         # Post CLAIM (if requested) — sign with room message format
-        import secrets
         claim_nonce = str(secrets.randbelow(10**18))
-        claim_sig = sign_room_message(key, "kibble", claim_nonce, claim_text)
-        if not args.no_claim:
-            print(f"Posting CLAIM to /r/kibble ...", file=sys.stderr)
-            claim_result = say_signed_in_room(did, claim_sig, claim_nonce, claim_text)
+        claim_sig = sign_room_message(key, KIBBLE_ROOM, claim_nonce,
+                                      claim_text)
+        if args.claim:
+            print(f"Posting CLAIM to /r/kibble ...",
+                  file=sys.stderr)
+            claim_result = say_signed_in_room(did, claim_sig,
+                                              claim_nonce, claim_text)
             print(f"  CLAIM result: {claim_result}", file=sys.stderr)
             print(f"  CLAIM: {claim_text}")
         else:
@@ -177,20 +185,24 @@ def main(argv=None):
 
         # Post DELIVER — sign with room message format
         deliver_nonce = str(secrets.randbelow(10**18))
-        deliver_sig = sign_room_message(key, "kibble", deliver_nonce, deliver_text)
+        deliver_sig = sign_room_message(key, KIBBLE_ROOM, deliver_nonce,
+                                        deliver_text)
         print(f"Posting DELIVER to /r/kibble ...", file=sys.stderr)
-        deliver_result = say_signed_in_room(did, deliver_sig, deliver_nonce, deliver_text)
+        deliver_result = say_signed_in_room(did, deliver_sig,
+                                            deliver_nonce, deliver_text)
         print(f"  DELIVER result: {deliver_result}", file=sys.stderr)
 
         print()
         print(f"Published to /r/kibble:")
         print(f"  DID: {did}")
-        print(f"  Claim job: kibble-intro-{run_ts}")
+        print(f"  Claim job: kibble-intro-{run_ts}" if args.claim
+              else "  Claim job: (not posted, use --claim)")
         print(f"  DELIVER: {deliver_text[:120]}...")
         print()
         print(f"Verification:")
         print(f"  Snapshot file: out/snapshots/kibble-snapshot-{run_ts}.json")
-        print(f"  Verify with: python scripts/did-verify.py out/snapshots/kibble-snapshot-{run_ts}.json")
+        print(f"  Verify with: python scripts/did-verify.py "
+              f"out/snapshots/kibble-snapshot-{run_ts}.json")
         print(f"  Repo: {args.repo_url}")
 
         return 0
