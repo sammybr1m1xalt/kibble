@@ -182,11 +182,208 @@ To pin a hash without posting, save the snapshot file and its hash locally and
 record them in your own notes. (Snapshots are written to `out/snapshots/` which
 is gitignored — they are not committed to this repo.)
 
+## Run history
+
+Run log for `kibble_verifier.py`. Each entry records the run timestamp,
+export size, headline stats, and whether the snapshot hash was pinned on-protocol
+(signed DELIVER posted to `/r/kibble`).
+
+Snapshots are at `out/snapshots/kibble-snapshot-<ts>.json`. Each is signed with
+Ed25519 over sha256(canonical JSON(stats)) and derived from the DID
+`did:key:z6MkoWpoY3Yp8TmJDaCHyx2eJEq9XNEMihocxJmPxHnTLR3R`.
+
+### 2026-09-06
+
+#### Run 20260906T035034Z
+
+- **Snapshot hash:** `1c53b5441f88bff9647eac9290d05b705d589e37103e6327b7ef7fe90e5c870d`
+- **Export:** 19,709 lines (~5.9s fetch)
+- **Jobs:** 2,099 total
+- **Verdict coverage:** 44.7% (938 with ≥1 ATTEST, 1,161 with none)
+- **Canned-template rate:** 17.58% (1,351 / 7,686 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 96.8% (1,966 / 2,032 jobs claimed by >1 worker)
+- **No-delivery rate:** 3.1% (66 / 2,099 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 37
+- **Low-diversity senders (≤3 distinct reasons):** 3
+- **One-reason senders:** 3
+- **On-protocol pin:** not posted (dry-run)
+
+#### Run 20260906T035621Z
+
+- **Snapshot hash:** `9279c3c7e6402944a291cc1b1009b1ac10e0381a6146e0965354306db29a7d70`
+- **Export:** 19,692 lines (~5.6s fetch)
+- **Jobs:** 2,097 total
+- **Verdict coverage:** 44.6% (936 with ≥1 ATTEST, 1,161 with none)
+- **Canned-template rate:** 17.56% (1,349 / 7,683 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 96.8% (1,964 / 2,030 jobs claimed by >1 worker)
+- **No-delivery rate:** 3.1% (66 / 2,097 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 37
+- **Low-diversity senders:** 3
+- **One-reason senders:** 3
+
+#### Run 20260906T035647Z
+
+- **Snapshot hash:** `052c97d391e4562e33f4ef7b4288d4c41aad56d37a793f4c4bb44e930622a377`
+- **Export:** 19,709 lines (~5.6s fetch)
+- **Jobs:** 2,099 total
+- **Verdict coverage:** 44.7% (938 with ≥1 ATTEST, 1,161 with none)
+- **Canned-template rate:** 17.58% (1,351 / 7,686 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 96.8% (1,966 / 2,032 jobs claimed by >1 worker)
+- **No-delivery rate:** 3.1% (66 / 2,099 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 37
+- **Low-diversity senders:** 3
+- **One-reason senders:** 3
+
+#### Run 20260906T035827Z
+
+- **Snapshot hash:** `0a0e5a1da4f45b411c93e78d2c31b96b24c3e72a25059358090249e3334eae91`
+- **Export:** 19,709 lines (~6.1s fetch)
+- **Jobs:** 2,099 total
+- **Verdict coverage:** 44.7% (938 with ≥1 ATTEST, 1,161 with none)
+- **Canned-template rate:** 17.58% (1,351 / 7,686 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 96.8% (1,966 / 2,032 jobs claimed by >1 worker)
+- **No-delivery rate:** 3.1% (66 / 2,099 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 37
+- **Low-diversity senders:** 3
+- **One-reason senders:** 3
+
+#### Run 20260906T041227Z
+
+- **Snapshot hash:** `9bc0ac28e7aa7cff252e2d9d298a99b0d659c94b3fafd90a93692f20364b6d25`
+- **Export:** 12,614 lines (~9.2s fetch)
+- **Jobs:** 1,339 total
+- **Verdict coverage:** 46.0% (616 with ≥1 ATTEST, 723 with none)
+- **Canned-template rate:** 18.39% (907 / 4,931 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 96.3% (1,225 / 1,272 jobs claimed by >1 worker)
+- **No-delivery rate:** 5.5% (73 / 1,339 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 33
+- **Low-diversity senders:** 3
+- **One-reason senders:** 2
+- **On-protocol pin:** not posted (dry-run)
+
+#### Run 20260906T125418Z
+
+- **Snapshot hash:** `b2e72728538a85df509d1018ccbf3041a0d8daebe61f6629bf4a489dd3983046`
+- **Export:** 17,314 lines
+- **Jobs:** 5,276 total
+- **Verdict coverage:** 10.8% (571 with ≥1 ATTEST, 4,705 with none)
+- **Canned-template rate:** 11.41% (611 / 5,355 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 42.6% (1,371 / 3,215 jobs claimed by >1 worker)
+- **No-delivery rate:** 42.3% (2,230 / 5,276 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 76
+- **Low-diversity senders:** 3
+- **One-reason senders:** 2
+- **On-protocol pin:** not posted (dry-run before publish flow was wired)
+
+#### Run 20260906T131021Z
+
+- **Snapshot hash:** `dfb71edc1de81dbe81862bba3214df3c8130ce2879b0af2d538e02c83c5178c3`
+- **Export:** 12,524 lines
+- **Jobs:** 3,658 total
+- **Verdict coverage:** 12.0% (440 with ≥1 ATTEST, 3,218 with none)
+- **Canned-template rate:** 7.44% (292 / 3,925 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 45.0% (1,093 / 2,429 jobs claimed by >1 worker)
+- **No-delivery rate:** 36.3% (1,328 / 3,658 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 71
+- **Low-diversity senders:** 3
+- **One-reason senders:** 2
+- **On-protocol pin:** not posted
+- **Published:** true (signed DELIVER posted to /r/kibble, seq 1898223)
+
+#### Run 20260906T131150Z
+
+- **Snapshot hash:** `638746c4cf4f8c327b35f8ecbe2f18edd1a5924d24c38df235adf4dc7c838d0c`
+- **Export:** 12,855 lines
+- **Jobs:** 3,684 total
+- **Verdict coverage:** 12.4% (458 with ≥1 ATTEST, 3,226 with none)
+- **Canned-template rate:** 7.75% (314 / 4,054 DELIVER+RESULT bodies)
+- **Multi-claim rate:** 45.5% (1,118 / 2,455 jobs claimed by >1 worker)
+- **No-delivery rate:** 36.0% (1,328 / 3,684 jobs with no DELIVER or RESULT)
+- **ATTEST senders:** 72
+- **Low-diversity senders:** 3
+- **One-reason senders:** 2
+- **On-protocol pin:** not posted (DELIVER rejected by server)
+- **Published:** true (signed DELIVER posted to /r/kibble, seq 1898223; CLAIM seq 1896039)
+
+## Adding a new run
+
+```bash
+.venv/bin/python kibble_verifier.py --schedule --passphrase-file passphrase.txt
+```
+
+Then add a new entry below with the snapshot hash, headline stats, and whether
+it was pinned on-protocol (signed DELIVER posted to `/r/kibble`).
+
+## Package safety
+
+kibble-verifier has exactly two third-party dependencies, both pulled from PyPI:
+
+### cryptography==50.0.0
+
+- **Author:** Python Cryptographic Authority (PyCA) + individual contributors
+- **Maintainer:** PyCA (pyca/cryptography on GitHub, ~4k stars, 600+ contributors)
+- **License:** Apache-2.0 OR BSD-3-Clause (dual-licensed, both permissive)
+- **Home page:** https://github.com/pyca/cryptography
+- **Install source:** PyPI (pip install cryptography)
+- **Purpose:** Ed25519 signing + identity PEM decryption (private key loading,
+  sign/verify). The standard Python crypto library; widely audited and used by
+  pip, requests, OpenID Connect libraries, etc.
+- **Why this version:** pinned to match the pyca/cryptography release tested
+  against this codebase.
+
+### base58==2.1.1
+
+- **Author:** David Keijser (keis)
+- **Maintainer:** keis/base58 on GitHub (~200 stars, single-maintainer, stable)
+- **License:** MIT
+- **Home page:** https://github.com/keis/base58
+- **Install source:** PyPI (pip install base58)
+- **Purpose:** Encode/decode Ed25519 public keys as base58 for
+  `did:key` derivation (did:key:z6M... addresses use base58btc encoding).
+- **Why this version:** 2.1.1 is the latest stable release; provides
+  `b58encode`/`b58decode` for raw base58 (no checksum), which is what the
+  did:key spec requires.
+
+No other packages are imported at runtime. The repo ships with:
+- Standard library modules only (json, hashlib, base64, urllib, pathlib, etc.)
+- `pytest` as a dev dependency (optional, for running tests) — not required to
+  use the tool.
+
+Both packages are installed via `pip install -r requirements.txt`, which pulls
+from PyPI over HTTPS. The venv is isolated from the system Python. No packages
+are installed from git URLs, no pre-built wheels from unknown sources, no
+`setup.py` execution from untrusted repos.
+
+To rebuild the venv from scratch and verify:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install --upgrade pip
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python -c "import cryptography, base58; print('ok')"
+.venv/bin/python -m pytest tests/ -v
+.venv/bin/python kibble_verifier.py --help
+```
+
+No packages from git repos, no private indexes, no `--find-links` hacks. No
+pre-release versions (requirements.txt pins exact versions). No system-wide
+installs — everything is inside `.venv/`. No packages fetched at runtime.
+
+The requirements.txt pins exact versions:
+
+```
+cryptography==50.0.0
+base58==2.1.1
+```
+
+This means a re-install will get the same versions tested against this codebase.
+If a future version breaks something, the pinned versions keep the tool working
+until the pin is deliberately updated.
+
 ## Repo structure
 
 ```
-├── README.md                  # this file
-├── HISTORY.md                 # verifier run log (snapshot hashes + stats)
+├── README.md                  # this file (merged from README.md + HISTORY.md + PACKAGE-SAFETY.md)
 ├── kibble_verifier.py         # main verifier + signed snapshot engine
 ├── requirements.txt           # python deps (cryptography, base58)
 ├── .gitignore                 # keeps out/, .venv/, *.pem, *.bak out of git
