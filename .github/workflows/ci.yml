@@ -14,16 +14,15 @@ jobs:
           python-version: '3.12'
       - name: Install deps
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -r requirements.txt
-          .venv/bin/pip install pytest
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest
       - name: Run tests
-        run: .venv/bin/python -m pytest tests/ -v
+        run: python -m pytest tests/ -v
       - name: Smoke — verifier parses
-        run: .venv/bin/python kibble_verifier.py --help > /dev/null
+        run: python kibble_verifier.py --help > /dev/null
       - name: Smoke — every script parses
         run: |
           for s in snapshot-query metric-diff attesttrace validator-watch canned-audit export-cacher did-verify technocore-publish check-tclk-offers test-message-signing; do
-            .venv/bin/python scripts/$s.py --help > /dev/null
+            python scripts/$s.py --help > /dev/null
           done

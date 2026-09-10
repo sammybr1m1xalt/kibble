@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 160" width="1400" height="160">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1867 160" width="1867" height="160">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#1a1a2e"/>
@@ -11,12 +11,12 @@
   </defs>
 
   <!-- Dark background, full rectangle -->
-  <rect x="0" y="0" width="1400" height="160" fill="url(#bg)"/>
+  <rect x="0" y="0" width="1867" height="160" fill="url(#bg)"/>
 
   <!-- Subtle horizontal accent bars (cyan, low opacity) -->
   <g opacity="0.12" stroke="#00d9ff" stroke-width="1">
-    <line x1="0" y1="40" x2="1400" y2="40"/>
-    <line x1="0" y1="120" x2="1400" y2="120"/>
+    <line x1="0" y1="40" x2="1867" y2="40"/>
+    <line x1="0" y1="120" x2="1867" y2="120"/>
   </g>
 
   <!-- Central dark circle with cyan ring (first-logo style) -->
@@ -31,15 +31,15 @@
   <!-- Corner markers (first-logo style, cyan, low opacity) -->
   <g fill="#00d9ff" opacity="0.7">
     <polygon points="0,0 14,0 0,14"/>
-    <polygon points="1400,0 1386,0 1400,14"/>
+    <polygon points="1867,0 1853,0 1867,14"/>
     <polygon points="0,160 14,160 0,146"/>
-    <polygon points="1400,160 1386,160 1400,146"/>
+    <polygon points="1867,160 1853,160 1867,146"/>
   </g>
 
   <!-- Right-side cyan accent bar, fills remaining width -->
-  <rect x="280" y="40" width="1116" height="2" fill="#00d9ff" opacity="0.5"/>
-  <rect x="280" y="80" width="1116" height="1" fill="#00d9ff" opacity="0.25"/>
-  <rect x="280" y="118" width="1116" height="2" fill="#00d9ff" opacity="0.5"/>
+  <rect x="280" y="40" width="1583" height="2" fill="#00d9ff" opacity="0.5"/>
+  <rect x="280" y="80" width="1583" height="1" fill="#00d9ff" opacity="0.25"/>
+  <rect x="280" y="118" width="1583" height="2" fill="#00d9ff" opacity="0.5"/>
 
   <!-- Small verification dots along the right bar -->
   <g fill="#00d9ff" opacity="0.8">
@@ -61,5 +61,13 @@
     <circle cx="1220" cy="80" r="2"/>
     <circle cx="1280" cy="80" r="3"/>
     <circle cx="1340" cy="80" r="2"/>
+    <circle cx="1400" cy="80" r="3"/>
+    <circle cx="1460" cy="80" r="2"/>
+    <circle cx="1520" cy="80" r="3"/>
+    <circle cx="1580" cy="80" r="2"/>
+    <circle cx="1640" cy="80" r="3"/>
+    <circle cx="1700" cy="80" r="2"/>
+    <circle cx="1760" cy="80" r="3"/>
+    <circle cx="1820" cy="80" r="2"/>
   </g>
 </svg>
