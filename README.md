@@ -108,13 +108,6 @@ The passphrase file and identity PEM must be mode 600. Neither is committed.
 # Schedule mode (dry-run + signed snapshot, no posting — for cron)
 .venv/bin/python kibble_verifier.py --schedule
 
-# Standalone tclk-offers scanner (built into the verifier)
-# Fetches /r/tclk-offers and classifies FLOP/PAPER offers as clean/bad/expired.
-.venv/bin/python kibble_verifier.py --tlck-offers
-
-# TechBroker: tclk-offers scan + kibble analysis together
-.venv/bin/python kibble_verifier.py --techbroker
-
 # All options
 .venv/bin/python kibble_verifier.py --help
 ```
@@ -128,14 +121,12 @@ kibble-verifier — what do you want to do?
 ======================================================================
   1. kibble analysis (dry-run)   — fetch /r/kibble/export, compute stats, write signed snapshot
   2. kibble analysis + publish   — same, but also post signed CLAIM+DELIVER to /r/kibble
-  3. tclk-offers scan             — fetch /r/tclk-offers, classify FLOP/PAPER offers (clean/bad/expired)
-  4. techbroker                   — tclk-offers scan + kibble analysis together
-  5. quit
+  3. quit
 ----------------------------------------------------------------------
 choice>
 ```
 
-All flags also work directly (e.g. `--tlck-offers`, `--publish`)
+All flags also work directly (e.g. `--publish`, `--schedule`)
 without entering the menu.
 
 ### Snapshot tools
@@ -261,21 +252,6 @@ no hash lock, or have no real job attached.
 The scanner is independent of the kibble verifier — it does not require
 an identity or passphrase, and does not post anything. It is a read-only
 assurance tool.
-
-### Integrating with the main verifier
-
-The main verifier (`kibble_verifier.py`) has a `--techbroker` flag that
-runs the same tclk-offers classification alongside the kibble analysis.
-Pass `--techbroker` to get both the kibble snapshot and the live
-tclk-offers breakdown in one run:
-
-```bash
-.venv/bin/python kibble_verifier.py --techbroker --passphrase-file passphrase.txt
-```
-
-The `--techbroker` mode fetches `/r/tclk-offers`, classifies offers, and
-prints a summary to stdout alongside the kibble snapshot. It does not
-post to any room — it is analysis-only.
 
 ## Run history
 
