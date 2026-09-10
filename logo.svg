@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 160" width="1400" height="160">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#1a1a2e"/>
@@ -6,30 +6,60 @@
     </linearGradient>
     <linearGradient id="check" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#00d9ff"/>
-      <stop offset="100%" style="stop-color:#00ff88"/>
+      <stop offset="100%" style="stop-color:#00b4d8"/>
     </linearGradient>
   </defs>
 
-  <circle cx="100" cy="100" r="90" fill="url(#bg)" stroke="#00d9ff" stroke-width="2" opacity="0.9"/>
+  <!-- Dark background, full rectangle -->
+  <rect x="0" y="0" width="1400" height="160" fill="url(#bg)"/>
 
-  <g opacity="0.15" stroke="#00d9ff" stroke-width="0.5">
-    <line x1="40" y1="60" x2="160" y2="60"/>
-    <line x1="40" y1="80" x2="160" y2="80"/>
-    <line x1="40" y1="100" x2="160" y2="100"/>
-    <line x1="40" y1="120" x2="160" y2="120"/>
-    <line x1="40" y1="140" x2="160" y2="140"/>
-    <line x1="60" y1="40" x2="60" y2="160"/>
-    <line x1="80" y1="40" x2="80" y2="160"/>
-    <line x1="100" y1="40" x2="100" y2="160"/>
-    <line x1="120" y1="40" x2="120" y2="160"/>
-    <line x1="140" y1="40" x2="140" y2="160"/>
+  <!-- Subtle horizontal accent bars (cyan, low opacity) -->
+  <g opacity="0.12" stroke="#00d9ff" stroke-width="1">
+    <line x1="0" y1="40" x2="1400" y2="40"/>
+    <line x1="0" y1="120" x2="1400" y2="120"/>
   </g>
 
-  <path d="M 60 100 L 90 130 L 145 70" fill="none" stroke="url(#check)" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Central dark circle with cyan ring (first-logo style) -->
+  <circle cx="180" cy="80" r="56" fill="url(#bg)" stroke="#00d9ff" stroke-width="1.5" opacity="0.95"/>
+  <circle cx="180" cy="80" r="48" fill="none" stroke="#00d9ff" stroke-width="0.6" opacity="0.5"/>
 
-  <circle cx="150" cy="50" r="4" fill="#00ff88" opacity="0.8"/>
-  <circle cx="50" cy="150" r="3" fill="#00d9ff" opacity="0.6"/>
-  <circle cx="145" cy="145" r="3" fill="#00d9ff" opacity="0.6"/>
+  <!-- Checkmark inside the circle -->
+  <path d="M 150 80 L 170 100 L 212 60"
+        fill="none" stroke="url(#check)" stroke-width="11"
+        stroke-linecap="round" stroke-linejoin="round"/>
 
-  <text x="100" y="178" font-family="monospace" font-size="12" fill="#00d9ff" text-anchor="middle" opacity="0.7">kibble-verifier</text>
+  <!-- Corner markers (first-logo style, cyan, low opacity) -->
+  <g fill="#00d9ff" opacity="0.7">
+    <polygon points="0,0 14,0 0,14"/>
+    <polygon points="1400,0 1386,0 1400,14"/>
+    <polygon points="0,160 14,160 0,146"/>
+    <polygon points="1400,160 1386,160 1400,146"/>
+  </g>
+
+  <!-- Right-side cyan accent bar, fills remaining width -->
+  <rect x="280" y="40" width="1116" height="2" fill="#00d9ff" opacity="0.5"/>
+  <rect x="280" y="80" width="1116" height="1" fill="#00d9ff" opacity="0.25"/>
+  <rect x="280" y="118" width="1116" height="2" fill="#00d9ff" opacity="0.5"/>
+
+  <!-- Small verification dots along the right bar -->
+  <g fill="#00d9ff" opacity="0.8">
+    <circle cx="320" cy="80" r="3"/>
+    <circle cx="380" cy="80" r="2"/>
+    <circle cx="440" cy="80" r="3"/>
+    <circle cx="500" cy="80" r="2"/>
+    <circle cx="560" cy="80" r="3"/>
+    <circle cx="620" cy="80" r="2"/>
+    <circle cx="680" cy="80" r="3"/>
+    <circle cx="740" cy="80" r="2"/>
+    <circle cx="800" cy="80" r="3"/>
+    <circle cx="860" cy="80" r="2"/>
+    <circle cx="920" cy="80" r="3"/>
+    <circle cx="980" cy="80" r="2"/>
+    <circle cx="1040" cy="80" r="3"/>
+    <circle cx="1100" cy="80" r="2"/>
+    <circle cx="1160" cy="80" r="3"/>
+    <circle cx="1220" cy="80" r="2"/>
+    <circle cx="1280" cy="80" r="3"/>
+    <circle cx="1340" cy="80" r="2"/>
+  </g>
 </svg>
