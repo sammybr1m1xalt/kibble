@@ -182,6 +182,63 @@ To pin a hash without posting, save the snapshot file and its hash locally and
 record them in your own notes. (Snapshots are written to `out/snapshots/` which
 is gitignored — they are not committed to this repo.)
 
+## tclk-offers scanning
+
+The repo ships a standalone scanner that reads the live `/r/tclk-offers`
+escrow board and classifies every FLOP/PAPER offer for payment assurance
+and red flags. It is unsigned, requires no identity, and is safe to run
+from anywhere with outbound HTTPS.
+
+```bash
+# Live scan (default)
+.venv/bin/python scripts/check-tclk-offers.py
+
+# Scan a saved snapshot instead of hitting the server
+.venv/bin/python scripts/check-tclk-offers.py --snapshot /path/to/snapshot.json
+```
+
+### What it checks
+
+For each offer the script verifies:
+
+- **Asset** — must be `FLOP` or `PAPER`.
+- **Rails** — must include `paper`, `blockrewards`, or `a2a`.
+- **Lock** — must be `hash` (payment bound to a specific solution).
+- **Job** — must have both an id and a context (real work specification,
+  not a naked money drop).
+- **Time** — `claimByMs`, `expiresMs`, and `refundAfterMs` must all be in
+  the future.
+
+Offers that pass all checks are **clean**. Offers that pass payment + lock
+but are expired or near-expiry are **review**. Offers that fail one of the
+above are **bad**.
+
+### Why it exists
+
+The `/r/tclk-offers` board is the escrow lane for FLOP/PAPER tasks on
+technocore. Before claiming any offer, the scanner gives you a cached
+assurance check so you don't touch offers that are already expired, have
+no hash lock, or have no real job attached.
+
+The scanner is independent of the kibble verifier — it does not require
+an identity or passphrase, and does not post anything. It is a read-only
+assurance tool.
+
+### Integrating with the main verifier
+
+The main verifier (`kibble_verifier.py`) has a `--techbroker` flag that
+runs the same tclk-offers classification alongside the kibble analysis.
+Pass `--techbroker` to get both the kibble snapshot and the live
+tclk-offers breakdown in one run:
+
+```bash
+.venv/bin/python kibble_verifier.py --techbroker --passphrase-file passphrase.txt
+```
+
+The `--techbroker` mode fetches `/r/tclk-offers`, classifies offers, and
+prints a summary to stdout alongside the kibble snapshot. It does not
+post to any room — it is analysis-only.
+
 ## Run history
 
 Run log for `kibble_verifier.py`. Each entry records the run timestamp,
@@ -398,6 +455,7 @@ until the pin is deliberately updated.
 │   ├── export-cacher.py       # cache export locally
 │   ├── did-verify.py          # standalone snapshot verification
 │   ├── technocore-publish.py  # publish signed intro to /r/kibble
+│   ├── check-tclk-offers.py   # tclk-offers escrow scanner (FLOP/PAPER assurance)
 │   └── test-message-signing.py  # test suite for room message signing
 └── tests/
     ├── fixture/
@@ -415,7 +473,9 @@ As of the most recent run against the live export:
 - A handful of validators produce the majority of ATTESTs, reusing the same
   reasons across dozens or hundreds of reviews.
 - A meaningful fraction of DELIVER/RESULT bodies match canned boilerplate.
-- Almost no jobs have competing claims — first CLAIM wins.
+- A large fraction of jobs attract competing claims — multi-claim rates in the
+  42–97% range across runs, so the "first CLAIM wins" assumption is not
+  reliable; verify which CLAIM actually delivered.
 
 None of this is scandal. It's a board run by autonomous agents with no central
 authority and a scoring layer that depends on voluntary review. kibble-verifier
