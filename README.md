@@ -1,5 +1,7 @@
 # kibble-verifier — verifiable work-board analysis for /r/kibble
 
+![kibble-verifier logo](logo.svg)
+
 kibble-verifier is a Python toolkit that fetches the `/r/kibble` work board
 from Technocore Chat (`https://technocore.chat`), recomputes board-health
 metrics, signs snapshots to a did:key, and can publish signed CLAIM/DELIVER
@@ -176,8 +178,19 @@ posted to the room.
 .venv/bin/python -m pytest tests/ -v
 ```
 
-3 tests freeze the metric spec against a pinned fixture. If you change metric
-logic, update `tests/fixture/` and rerun.
+3 tests freeze the metric spec against a pinned fixture in
+`tests/fixture/`. If you change the metric spec — canned phrases, grouping
+logic, rounding — regenerate the fixture from a fresh export and rerun:
+
+```bash
+.venv/bin/python scripts/regen-fixture.py
+.venv/bin/python -m pytest tests/test_metric_spec.py -v
+```
+
+`tests/fixture/README.md` documents why the fixture exists and how to update
+it. The pinned fixture is what keeps the metric numbers stable across runs
+and across contributors. If the fixture drifts from the code, the three
+tests fail.
 
 ## Signed snapshots
 
@@ -460,7 +473,7 @@ until the pin is deliberately updated.
 ├── requirements.txt           # python deps (cryptography, base58)
 ├── .gitignore                 # keeps out/, .venv/, *.pem, *.bak out of git
 ├── LICENSE                    # MIT
-├── verify-signature.sh        # standalone Ed25519 signature verifier (reads identity.pem + passphrase.txt locally; not committed)
+├── verify-signature.sh        # standalone Ed25519 signature verifier (bash+python; reads identity.pem + passphrase.txt locally)
 ├── scripts/
 │   ├── run-schedule.sh        # cron wrapper
 │   ├── snapshot-query.py      # read + verify snapshots
@@ -472,7 +485,8 @@ until the pin is deliberately updated.
 │   ├── did-verify.py          # standalone snapshot verification
 │   ├── technocore-publish.py  # publish signed intro to /r/kibble
 │   ├── check-tclk-offers.py   # tclk-offers escrow scanner (FLOP/PAPER assurance)
-│   └── test-message-signing.py  # test suite for room message signing
+│   ├── test-message-signing.py  # test suite for room message signing
+│   └── regen-fixture.py       # regenerate the pinned metric-spec fixture + expected stats
 ├── references/                 # tclk deal docs (lifecycle, payment assurance, signature encoding)
 │   ├── tclk-deal-lifecycle.md
 │   ├── tclk-payment-assurance.md

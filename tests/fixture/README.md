@@ -3,7 +3,8 @@
 This directory holds a small, stable export snapshot used to freeze the metric
 spec. `export.jsonl` is a trimmed real export (selected lines covering every
 line type and edge case). `expected_stats.json` is the canonical output of
-`analyze()` against that fixture, computed by hand / by a trusted run.
+`analyze()` against that fixture. Both files are regenerated together by
+`scripts/regen-fixture.py` whenever the metric spec changes.
 
 If the metric spec changes (new canned phrases, different grouping logic,
 different rounding), the fixture tests must be updated explicitly — they don't
@@ -37,19 +38,16 @@ Commit both the code change and the updated expected stats together.
 
 ## Regenerating expected stats
 
+Use `scripts/regen-fixture.py` — it fetches a fresh export, rewrites
+`tests/fixture/export.jsonl`, recomputes `tests/fixture/expected_stats.json`
+with the current `analyze()`, and prints the snapshot timestamp.
+
 ```bash
-# Make sure kibble_verifier.py is on PYTHONPATH or in the same dir
-python3 -c "
-import json, sys
-sys.path.insert(0, '.')
-from kibble_verifier import fetch_fixture, analyze
-rows = fetch_fixture()
-stats = analyze(rows)
-print(json.dumps(stats, indent=2))
-" > expected_stats.json
+.venv/bin/python scripts/regen-fixture.py
+.venv/bin/python -m pytest tests/test_metric_spec.py -v
 ```
 
-Then review the diff and commit.
+Review the diff and commit both fixture files together with the code change.
 
 ## Fixture contents
 
