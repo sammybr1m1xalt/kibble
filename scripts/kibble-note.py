@@ -197,9 +197,21 @@ def main(argv=None):
 
     if args.digest_only:
         print(digest)
-        note_body = digest
     elif args.publish_note:
-        # --- Full note body: digest line + signed snapshot JSON ---
+        # --- Agent digest goes to /kv/kibble-health/latest ---
+        # One-line digest: everything a fetch-only agent needs in one request.
+        # This stays well under the 8,192-char note cap.
+        latest_body = digest + "\n"
+        print(f"[{run_ts}] publishing digest to /kv/{KIBBLE_NOTES_NS}/latest ...", file=sys.stderr)
+        latest_result = post_noteKV(latest_body, KV_LATEST)
+        if latest_result and latest_result["status"] == 200:
+            print(f"[{run_ts}] OK /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:100]}", file=sys.stderr)
+        else:
+            print(f"[{run_ts}] FAIL /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:150]}", file=sys.stderr)
+
+        # --- Full signed snapshot goes to /kv/kibble-health/<date> ---
+        # Full JSON is larger; dated key is the archive. Agents that need the
+        # full snapshot GET the dated key (README tells them to).
         snapshot_payload = {
             "run_ts": run_ts,
             "did": did or "unsigned",
@@ -210,23 +222,13 @@ def main(argv=None):
             "signature": sig_b64 or "",
             "fetch_duration_s": round(fetch_duration, 2),
             "stats": stats,
-            "note": "Signed kibble-health snapshot. First line is an agent digest; "
-                    "the rest is the full signed JSON. Source: github.com/sammybr1m1xalt/kibble-verifier",
+            "note": "Full signed kibble-health snapshot. Agent digest is at /kv/kibble-health/latest. "
+                    "Source: github.com/sammybr1m1xalt/kibble-verifier",
         }
-        note_body = digest + "\n\n" + json.dumps(snapshot_payload, indent=2) + "\n"
-
-        # --- Publish to /kv/kibble-health/latest ---
-        print(f"[{run_ts}] publishing to /kv/{KIBBLE_NOTES_NS}/latest ...", file=sys.stderr)
-        latest_result = post_noteKV(note_body, KV_LATEST)
-        if latest_result and latest_result["status"] == 200:
-            print(f"[{run_ts}] OK /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:100]}", file=sys.stderr)
-        else:
-            print(f"[{run_ts}] FAIL /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:150]}", file=sys.stderr)
-
-        # --- Publish to /kv/kibble-health/<date> ---
+        dated_body = json.dumps(snapshot_payload, indent=2) + "\n"
         dated_url = f"{KV_DATED}{today_key}"
-        print(f"[{run_ts}] publishing to /kv/{KIBBLE_NOTES_NS}/{today_key} ...", file=sys.stderr)
-        dated_result = post_noteKV(note_body, dated_url)
+        print(f"[{run_ts}] publishing full snapshot to /kv/{KIBBLE_NOTES_NS}/{today_key} ...", file=sys.stderr)
+        dated_result = post_noteKV(dated_body, dated_url)
         if dated_result and dated_result["status"] == 200:
             print(f"[{run_ts}] OK /kv/{KIBBLE_NOTES_NS}/{today_key}: {dated_result['body'][:100]}", file=sys.stderr)
         else:
@@ -240,7 +242,9 @@ def main(argv=None):
         local_path.write_text(json.dumps(local_payload, indent=2) + "\n")
         print(f"\n[{run_ts}] local snapshot: {local_path}", file=sys.stderr)
 
-        print(note_body)
+        # Print both bodies to stdout (for logging / pipe)
+        print(latest_body, end="")
+        print(dated_body, end="")
     else:
         # --- Full note body: digest line + signed snapshot JSON ---
         snapshot_payload = {
