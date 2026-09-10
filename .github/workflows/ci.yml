@@ -23,6 +23,8 @@ jobs:
         run: python kibble_verifier.py --help > /dev/null
       - name: Smoke — every script parses
         run: |
-          for s in snapshot-query metric-diff attesttrace validator-watch canned-audit export-cacher did-verify technocore-publish check-tclk-offers test-message-signing; do
-            python scripts/$s.py --help > /dev/null
+          for s in scripts/*.py; do
+            name=$(basename "$s" .py)
+            echo "=== $name ==="
+            python "$s" --help > /dev/null 2>&1 || echo "FAIL: $name"
           done
