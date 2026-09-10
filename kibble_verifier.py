@@ -616,7 +616,7 @@ def techbroker_scan(
         verdict = "bad" if risk else ("expired" if is_expired else "clean")
         entry = {
             "contract": contract,
-            "amount": int(amount) if amount is not None else None,
+            "amount": int(float(amount)) if amount is not None else None,
             "asset": asset,
             "rails": rails,
             "lock": lock,
@@ -772,7 +772,7 @@ def run_tclk_offers_scan(limit: int = 300) -> dict:
         verdict = "bad" if risk else ("expired" if is_expired else "clean")
         entry = {
             "contract": contract,
-            "amount": int(amount) if amount is not None else None,
+            "amount": int(float(amount)) if amount is not None else None,
             "asset": asset,
             "rails": rails,
             "lock": lock,
