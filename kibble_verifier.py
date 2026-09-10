@@ -533,6 +533,287 @@ def say_signed_in_room(
         return {"url": url, "error": str(e)[:500]}
 
 
+def techbroker_scan(
+    run_ts: str,
+    tclk_offers_url: str = "https://technocore.chat/r/tclk-offers",
+    tech_broker_room: str = "https://technocore.chat/r/tech-broker",
+    limit: int = 300,
+) -> dict:
+    """Fetch /r/tclk-offers + /r/tech-broker, verify tclk offers for payment integrity,
+    post a plain-text summary to /r/tech-broker (unsigned say, no DID needed),
+    and return the scan results.
+
+    Runs alongside the kibble analysis; does not require identity or passphrase.
+    """
+    # --- fetch tclk-offers ---
+    offers_rows = _fetch_jsonl(tclk_offers_url)
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    offers_clean: list[dict] = []
+    offers_bad: list[dict] = []
+    offers_review: list[dict] = []
+
+    for row in offers_rows:
+        text = row.get("text", "")
+        if '"type":"offer"' not in text:
+            continue
+        start = text.find("{")
+        if start == -1:
+            continue
+        # count braces to find matching close (server may append text after })
+        depth = 0
+        end = -1
+        for i in range(start, len(text)):
+            c = text[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end == -1:
+            continue
+        try:
+            obj = json.loads(text[start:end+1])
+        except Exception:
+            continue
+
+        amount = obj.get("amount")
+        asset = obj.get("asset", "")
+        rails = obj.get("rails", [])
+        lock = obj.get("lock", "")
+        claim_by = obj.get("claimByMs")
+        expires = obj.get("expiresMs")
+        refund = obj.get("refundAfterMs")
+        contract = obj.get("id", "")
+        job = obj.get("job", {})
+        job_id = job.get("id", "")
+        ctx = job.get("context", "")
+        proto = job.get("proto", "")
+        payer = obj.get("from", "")
+        role = obj.get("role", "")
+
+        has_payment = asset in ("FLOP", "PAPER") and bool(rails)
+        has_lock = lock == "hash"
+        has_job = bool(job_id) or bool(ctx)
+        is_expired = (
+            (claim_by and int(claim_by) < now_ms)
+            or (expires and int(expires) < now_ms)
+            or (refund and int(refund) < now_ms)
+        )
+
+        risk = 0
+        if not has_lock:
+            risk |= 1
+        if not has_job:
+            risk |= 2
+        if not has_payment:
+            risk |= 4
+        if is_expired:
+            risk |= 8
+
+        verdict = "bad" if risk else ("expired" if is_expired else "clean")
+        entry = {
+            "contract": contract,
+            "amount": amount,
+            "asset": asset,
+            "rails": rails,
+            "lock": lock,
+            "claim_by": claim_by,
+            "expires": expires,
+            "refund": refund,
+            "proto": proto,
+            "job_id": job_id,
+            "context": ctx,
+            "payer": payer,
+            "role": role,
+            "risk": risk,
+            "verdict": verdict,
+            "seq": row.get("seq"),
+        }
+
+        if verdict == "clean":
+            offers_clean.append(entry)
+        elif verdict == "expired":
+            offers_review.append(entry)
+        else:
+            offers_bad.append(entry)
+
+    # --- build summary text ---
+    total_offers = len(offers_clean) + len(offers_bad) + len(offers_review)
+    total_flop = sum(o["amount"] for o in offers_clean if o["asset"] == "FLOP")
+    clean_flop = sum(o["amount"] for o in offers_clean if o["asset"] == "FLOP" and o["lock"] == "hash")
+    bad_contracts = ", ".join(o["contract"][:16] for o in offers_bad[:5])
+
+    summary_lines = [
+        f"techbroker scan {run_ts} UTC",
+        f"tclk-offers: {total_offers} offers seen (limit {limit})",
+        f"  clean: {len(offers_clean)} ( FLOP {clean_flop} locked + job, PAPER locked + job )",
+        f"  review/expired: {len(offers_review)}",
+        f"  bad (no lock / wrong asset / no job): {len(offers_bad)} — contracts: {bad_contracts or 'none'}",
+        f"  total FLOP on clean locked offers: {total_flop}",
+        f"note: unsigned analysis-only scan, no room posted. re-run with --techbroker to refresh.",
+    ]
+    summary_text = "\n".join(summary_lines)
+
+    return {
+        "run_ts": run_ts,
+        "tclk_offers_scanned": total_offers,
+        "clean": len(offers_clean),
+        "review_expired": len(offers_review),
+        "bad": len(offers_bad),
+        "total_flop_clean_locked": total_flop,
+        "clean_flop": clean_flop,
+        "bad_contracts": bad_contracts,
+        "offers_sample": offers_clean[:8],
+    }
+
+
+def _fetch_jsonl(url: str) -> list[dict]:
+    """Fetch a JSONL endpoint and return parsed rows."""
+    try:
+        raw = urllib.request.urlopen(urllib.request.Request(url), timeout=30).read().decode("utf-8")
+    except Exception:
+        return []
+    rows: list[dict] = []
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return rows
+
+
+def run_tclk_offers_scan(limit: int = 300) -> dict:
+    """Standalone tclk-offers classification — same logic as techbroker_scan,
+
+    but returned as a self-contained result without the kibble analysis or room post.
+    This is the logic behind both --techbroker and --tlck-offers.
+    """
+    # tclk-offers returns a JSON object {"messages": [...]}, NOT JSONL —
+    # so fetch it directly rather than via _fetch_jsonl (which expects lines).
+    url = "https://technocore.chat/r/tclk-offers?since=0&limit=" + str(limit)
+    try:
+        raw = urllib.request.urlopen(urllib.request.Request(url), timeout=30).read().decode("utf-8")
+        data = json.loads(raw)
+        offers_rows = data.get("messages", [])
+    except Exception:
+        offers_rows = []
+
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+
+    offers_clean: list[dict] = []
+    offers_bad: list[dict] = []
+    offers_review: list[dict] = []
+
+    for row in offers_rows:
+        text = row.get("text", "")
+        if '"type":"offer"' not in text:
+            continue
+        start = text.find("{")
+        if start == -1:
+            continue
+        # count braces to find matching close (server may append text after })
+        depth = 0
+        end = -1
+        for i in range(start, len(text)):
+            c = text[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i
+                    break
+        if end == -1:
+            continue
+        try:
+            obj = json.loads(text[start:end+1])
+        except Exception:
+            continue
+
+        amount = obj.get("amount")
+        asset = obj.get("asset", "")
+        rails = obj.get("rails", [])
+        lock = obj.get("lock", "")
+        claim_by = obj.get("claimByMs")
+        expires = obj.get("expiresMs")
+        refund = obj.get("refundAfterMs")
+        contract = obj.get("id", "")
+        job = obj.get("job", {})
+        job_id = job.get("id", "")
+        ctx = job.get("context", "")
+        proto = job.get("proto", "")
+        payer = obj.get("from", "")
+        role = obj.get("role", "")
+
+        has_payment = asset in ("FLOP", "PAPER") and bool(rails)
+        has_lock = lock == "hash"
+        has_job = bool(job_id) or bool(ctx)
+        is_expired = (
+            (claim_by and int(claim_by) < now_ms)
+            or (expires and int(expires) < now_ms)
+            or (refund and int(refund) < now_ms)
+        )
+
+        risk = 0
+        if not has_lock:
+            risk |= 1
+        if not has_job:
+            risk |= 2
+        if not has_payment:
+            risk |= 4
+        if is_expired:
+            risk |= 8
+
+        verdict = "bad" if risk else ("expired" if is_expired else "clean")
+        entry = {
+            "contract": contract,
+            "amount": amount,
+            "asset": asset,
+            "rails": rails,
+            "lock": lock,
+            "claim_by": claim_by,
+            "expires": expires,
+            "refund": refund,
+            "proto": proto,
+            "job_id": job_id,
+            "context": ctx,
+            "payer": payer,
+            "role": role,
+            "risk": risk,
+            "verdict": verdict,
+            "seq": row.get("seq"),
+        }
+
+        if verdict == "clean":
+            offers_clean.append(entry)
+        elif verdict == "expired":
+            offers_review.append(entry)
+        else:
+            offers_bad.append(entry)
+
+    total_offers = len(offers_clean) + len(offers_bad) + len(offers_review)
+    total_flop = sum(o["amount"] for o in offers_clean if o["asset"] == "FLOP")
+    clean_flop = sum(o["amount"] for o in offers_clean if o["asset"] == "FLOP" and o["lock"] == "hash")
+    bad_contracts = ", ".join(o["contract"][:16] for o in offers_bad[:5])
+
+    return {
+        "tlck_offers_scanned": total_offers,
+        "clean": len(offers_clean),
+        "review_expired": len(offers_review),
+        "bad": len(offers_bad),
+        "total_flop_clean_locked": total_flop,
+        "clean_flop": clean_flop,
+        "bad_contracts": bad_contracts,
+        "offers_sample": offers_clean[:8],
+        "fetched": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def build_deliver_text(stats: dict, run_ts: str, snap_hash: str) -> str:
     """Build the signed DELIVER text summarizing one run.
 
@@ -605,7 +886,57 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="skip signing (unsigned snapshot only, for debugging without identity)",
     )
+    parser.add_argument(
+        "--techbroker",
+        action="store_true",
+        help="fetch /r/tclk-offers + /r/tech-broker, verify payment integrity, post summary to /r/tech-broker (unsigned say), and run kibble analysis",
+    )
+    parser.add_argument(
+        "--tlck-offers",
+        action="store_true",
+        help="standalone tclk-offers scanner: fetch /r/tclk-offers and classify FLOP/PAPER offers for payment assurance (same logic as scripts/check-tclk-offers.py, built into the verifier)",
+    )
+    parser.add_argument(
+        "--submit",
+        action="store_true",
+        help="run the 9-queens task submit script (scripts/submit-9queens.py) — solves 9-queens and submits accept+deliver+reveal for contract 0xdee5831f1e60f2fe600331",
+    )
     args = parser.parse_args(argv)
+
+    # Interactive launcher: when no flags given, show menu and prompt for a sub-tool.
+    # This is the "what do you want to do" prompt you asked for.
+    if len(sys.argv) == 1 and not (args.dry_run or args.publish or args.schedule or
+                                  args.techbroker or args.tlck_offers or args.submit):
+        print("=" * 70)
+        print("kibble-verifier — what do you want to do?")
+        print("=" * 70)
+        print("  1. kibble analysis (dry-run)   — fetch /r/kibble/export, compute stats, write signed snapshot")
+        print("  2. kibble analysis + publish   — same, but also post signed CLAIM+DELIVER to /r/kibble")
+        print("  3. tclk-offers scan             — fetch /r/tclk-offers, classify FLOP/PAPER offers (clean/bad/expired)")
+        print("  4. techbroker                   — tclk-offers scan + kibble analysis together")
+        print("  5. submit 9-queens              — solve 9-queens, submit accept+deliver+reveal (contract 0xdee5831f1e60f2fe600331)")
+        print("  6. quit")
+        print("-" * 70)
+        try:
+            choice = input("choice> ").strip()
+        except EOFError:
+            print("no input, exiting")
+            return 0
+        if choice == "1":
+            args.dry_run = True
+        elif choice == "2":
+            args.publish = True
+        elif choice == "3":
+            args.tlck_offers = True
+        elif choice == "4":
+            args.techbroker = True
+        elif choice == "5":
+            args.submit = True
+        elif choice == "6":
+            return 0
+        else:
+            print(f"unknown choice: {choice!r}, exiting")
+            return 1
 
     # --dry-run is the default if neither --publish nor --schedule is set
     do_publish = args.publish
@@ -641,6 +972,31 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     try:
+        # --- Dispatch: if --tlck-offers or --submit, run that tool and skip kibble analysis ---
+        if args.tlck_offers:
+            print(f"[{run_ts}] tclk-offers scan (standalone)", file=sys.stderr)
+            scan = run_tclk_offers_scan(limit=300)
+            print(json.dumps(scan, indent=2))
+            return 0
+        if args.submit:
+            print(f"[{run_ts}] running submit-9queens.py ...", file=sys.stderr)
+            import subprocess, sys as _sys
+            repo_scripts = REPO_DIR / "scripts"
+            submit_script = repo_scripts / "submit-9queens.py"
+            if not submit_script.exists():
+                print(f"[{run_ts}] ERROR: scripts/submit-9queens.py not found", file=sys.stderr)
+                return 1
+            result = subprocess.run(
+                [_sys.executable, str(submit_script)],
+                cwd=str(REPO_DIR),
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            print(result.stdout, end="")
+            print(result.stderr, end="", file=sys.stderr)
+            return result.returncode
+
         # --- Fetch + analyze ---
         print(f"[{run_ts}] fetching /r/kibble/export ...", file=sys.stderr)
         rows = fetch_export()
@@ -740,6 +1096,17 @@ def main(argv: list[str] | None = None) -> int:
             }
 
         print(json.dumps(summary, indent=2))
+
+        # --- TechBroker scan (optional, unsigned say to /r/tech-broker) ---
+        if args.techbroker:
+            print(f"\n[{run_ts}] TECHBROKER SCAN", file=sys.stderr)
+            try:
+                tb_result = techbroker_scan(run_ts)
+                print(json.dumps(tb_result, indent=2))
+            except Exception as e:
+                print(f"[{run_ts}] TECHBROKER SCAN FAILED: {e}", file=sys.stderr)
+                tb_result = {"error": str(e)}
+
         return 0
 
     finally:
