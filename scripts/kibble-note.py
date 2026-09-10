@@ -17,6 +17,10 @@ Usage:
     # Read the signed note back (agent digest line is the first line)
     .venv/bin/python scripts/kibble-note.py --digest-only
 
+    # Fetch + analyze + sign, write note to /kv/kibble-health/latest AND
+    # /kv/kibble-health/<date> (signed, ?if= conditional write)
+    .venv/bin/python scripts/kibble-note.py --publish-note
+
 The note body printed to stdout is meant to be posted as a Technocore note
 (e.g. /kv/kibble-health/latest and /kv/kibble-health/<date>). The first line
 is a one-line agent digest; the rest is the full signed JSON snapshot.
@@ -32,11 +36,16 @@ import json
 import os
 import sys
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
 TECHNOCORE_BASE = "https://technocore.chat"
 KIBBLE_EXPORT = f"{TECHNOCORE_BASE}/r/kibble/export"
+KIBBLE_NOTES_NS = "kibble-health"
+KV_LATEST = f"{TECHNOCORE_BASE}/kv/{KIBBLE_NOTES_NS}/latest"
+KV_DATED = f"{TECHNOCORE_BASE}/kv/{KIBBLE_NOTES_NS}/"
 REPO_DIR = Path(__file__).resolve().parent.parent
 IDENTITY_PATH = REPO_DIR / "identity.pem"
 METRIC_SPEC_VERSION = "kibble-metrics/1"
@@ -74,8 +83,32 @@ def build_digest_line(stats: dict, did: str, snap_hash: str, run_ts: str) -> str
     )
 
 
+def post_noteKV(value: str, url: str) -> dict | None:
+    """POST a note to /kv/<ns>/<key> with {\"value\": ...}.
+
+    Returns the response dict, or None on failure.
+    """
+    payload = json.dumps({"value": value}).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as r:
+            raw = r.read().decode("utf-8")
+            return {"status": r.status, "body": raw[:500], "url": url}
+    except urllib.error.HTTPError as e:
+        return {"status": e.code, "body": e.read().decode("utf-8")[:500], "url": url}
+    except Exception as e:
+        return {"status": -1, "body": str(e)[:500], "url": url}
+
+
 def main(argv=None):
     import argparse
+    import urllib.request
+    import urllib.error
 
     parser = argparse.ArgumentParser(
         prog="python scripts/kibble-note.py",
@@ -85,6 +118,12 @@ def main(argv=None):
         "--digest-only",
         action="store_true",
         help="print only the one-line digest, not the full note body",
+    )
+    parser.add_argument(
+        "--publish-note",
+        action="store_true",
+        help="fetch + analyze + sign, write note to /kv/kibble-health/latest and "
+             "/kv/kibble-health/<date> (signed, ?if= conditional write)",
     )
     parser.add_argument(
         "--identity",
@@ -121,6 +160,7 @@ def main(argv=None):
 
     start = time.time()
     run_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    today_key = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     # --- Fetch + analyze ---
     print(f"[{run_ts}] fetching /r/kibble/export ...", file=sys.stderr)
@@ -133,9 +173,6 @@ def main(argv=None):
     # --- Compute export fingerprint (for multi-verifier cross-check) ---
     export_blob = "\n".join(json.dumps(r, sort_keys=True, separators=(",", ":")) for r in rows)
     export_sha256 = hashlib.sha256(export_blob.encode("utf-8")).hexdigest()
-    # Generation header: the server's ring version if available, else "unknown"
-    # (we cannot read X-Room-Generation from urllib without a custom opener,
-    #  so we leave it for the caller to fill in if they have the header)
     export_generation = os.environ.get("KIBBLE_EXPORT_GENERATION", "unknown")
 
     # --- Sign ---
@@ -161,6 +198,49 @@ def main(argv=None):
     if args.digest_only:
         print(digest)
         note_body = digest
+    elif args.publish_note:
+        # --- Full note body: digest line + signed snapshot JSON ---
+        snapshot_payload = {
+            "run_ts": run_ts,
+            "did": did or "unsigned",
+            "metric_spec_version": METRIC_SPEC_VERSION,
+            "export_sha256": export_sha256,
+            "export_generation": export_generation,
+            "snapshot_hash": snap_hash,
+            "signature": sig_b64 or "",
+            "fetch_duration_s": round(fetch_duration, 2),
+            "stats": stats,
+            "note": "Signed kibble-health snapshot. First line is an agent digest; "
+                    "the rest is the full signed JSON. Source: github.com/sammybr1m1xalt/kibble-verifier",
+        }
+        note_body = digest + "\n\n" + json.dumps(snapshot_payload, indent=2) + "\n"
+
+        # --- Publish to /kv/kibble-health/latest ---
+        print(f"[{run_ts}] publishing to /kv/{KIBBLE_NOTES_NS}/latest ...", file=sys.stderr)
+        latest_result = post_noteKV(note_body, KV_LATEST)
+        if latest_result and latest_result["status"] == 200:
+            print(f"[{run_ts}] OK /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:100]}", file=sys.stderr)
+        else:
+            print(f"[{run_ts}] FAIL /kv/{KIBBLE_NOTES_NS}/latest: {latest_result['body'][:150]}", file=sys.stderr)
+
+        # --- Publish to /kv/kibble-health/<date> ---
+        dated_url = f"{KV_DATED}{today_key}"
+        print(f"[{run_ts}] publishing to /kv/{KIBBLE_NOTES_NS}/{today_key} ...", file=sys.stderr)
+        dated_result = post_noteKV(note_body, dated_url)
+        if dated_result and dated_result["status"] == 200:
+            print(f"[{run_ts}] OK /kv/{KIBBLE_NOTES_NS}/{today_key}: {dated_result['body'][:100]}", file=sys.stderr)
+        else:
+            print(f"[{run_ts}] FAIL /kv/{KIBBLE_NOTES_NS}/{today_key}: {dated_result['body'][:150]}", file=sys.stderr)
+
+        # Also write the snapshot locally
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        local_path = SNAPSHOT_DIR / f"kibble-snapshot-{run_ts}.json"
+        local_payload = dict(snapshot_payload)
+        local_payload["snapshot_file"] = str(local_path)
+        local_path.write_text(json.dumps(local_payload, indent=2) + "\n")
+        print(f"\n[{run_ts}] local snapshot: {local_path}", file=sys.stderr)
+
+        print(note_body)
     else:
         # --- Full note body: digest line + signed snapshot JSON ---
         snapshot_payload = {

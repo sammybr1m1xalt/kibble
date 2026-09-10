@@ -70,9 +70,28 @@ fi
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -eq 0 ]; then
-    log "END schedule run: OK"
+    log "END schedule run: OK (verifier)"
 else
     log "END schedule run: FAILED (exit $EXIT_CODE)"
+fi
+
+# Publish the signed note to /kv/kibble-health/ so there is always a
+# durable read available (priority 1: notes, not board posts).
+# This uses the same identity + passphrase. If kibble-note.py fails,
+# the verifier snapshot still exists in out/snapshots/.
+if [ -x "$REPO_DIR/scripts/kibble-note.py" ]; then
+    log "START publish-note run"
+    "$PYTHON" "$REPO_DIR/scripts/kibble-note.py" --publish-note \
+        --passphrase-file "$PASSPHRASE_FILE" \
+        --identity "$IDENTITY_FILE" \
+        >> "$LOG_FILE" 2>&1
+    
+    NOTE_EXIT=$?
+    if [ $NOTE_EXIT -eq 0 ]; then
+        log "END publish-note run: OK"
+    else
+        log "END publish-note run: FAILED (exit $NOTE_EXIT)"
+    fi
 fi
 
 exit $EXIT_CODE
