@@ -616,7 +616,7 @@ def techbroker_scan(
         verdict = "bad" if risk else ("expired" if is_expired else "clean")
         entry = {
             "contract": contract,
-            "amount": amount,
+            "amount": int(amount) if amount is not None else None,
             "asset": asset,
             "rails": rails,
             "lock": lock,
@@ -695,7 +695,7 @@ def run_tclk_offers_scan(limit: int = 300) -> dict:
     """
     # tclk-offers returns a JSON object {"messages": [...]}, NOT JSONL —
     # so fetch it directly rather than via _fetch_jsonl (which expects lines).
-    url = "https://technocore.chat/r/tclk-offers?since=0&limit=" + str(limit)
+    url = "https://technocore.chat/r/tclk-offers?since=0&limit=" + str(limit) + "&format=json"
     try:
         raw = urllib.request.urlopen(urllib.request.Request(url), timeout=30).read().decode("utf-8")
         data = json.loads(raw)
@@ -772,7 +772,7 @@ def run_tclk_offers_scan(limit: int = 300) -> dict:
         verdict = "bad" if risk else ("expired" if is_expired else "clean")
         entry = {
             "contract": contract,
-            "amount": amount,
+            "amount": int(amount) if amount is not None else None,
             "asset": asset,
             "rails": rails,
             "lock": lock,

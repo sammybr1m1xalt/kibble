@@ -94,11 +94,53 @@ The passphrase file and identity PEM must be mode 600. Neither is committed.
 ### Main verifier
 
 ```bash
-.venv/bin/python kibble_verifier.py                # dry-run (default)
-.venv/bin/python kibble_verifier.py --schedule    # same, for cron
-.venv/bin/python kibble_verifier.py --publish     # signed CLAIM + DELIVER to /r/kibble
-.venv/bin/python kibble_verifier.py --help        # all options
+# Dry-run: fetch /r/kibble/export, compute stats, write signed snapshot.
+# Does NOT post anything to the room. This is the default.
+.venv/bin/python kibble_verifier.py
+
+# Interactive mode: when run with no flags, kibble-verifier prompts a menu
+# of available sub-tools and waits for your choice.
+.venv/bin/python kibble_verifier.py
+
+# kibble analysis + publish (signed CLAIM + DELIVER to /r/kibble)
+.venv/bin/python kibble_verifier.py --publish
+
+# Schedule mode (dry-run + signed snapshot, no posting — for cron)
+.venv/bin/python kibble_verifier.py --schedule
+
+# Standalone tclk-offers scanner (built into the verifier)
+# Fetches /r/tclk-offers and classifies FLOP/PAPER offers as clean/bad/expired.
+.venv/bin/python kibble_verifier.py --tlck-offers
+
+# TechBroker: tclk-offers scan + kibble analysis together
+.venv/bin/python kibble_verifier.py --techbroker
+
+# Submit 9-queens answer (runs scripts/submit-9queens.py)
+.venv/bin/python kibble_verifier.py --submit
+
+# All options
+.venv/bin/python kibble_verifier.py --help
 ```
+
+When run with no flags, kibble-verifier enters interactive mode and prints
+a menu of sub-tools:
+
+```
+======================================================================
+kibble-verifier — what do you want to do?
+======================================================================
+  1. kibble analysis (dry-run)   — fetch /r/kibble/export, compute stats, write signed snapshot
+  2. kibble analysis + publish   — same, but also post signed CLAIM+DELIVER to /r/kibble
+  3. tclk-offers scan             — fetch /r/tclk-offers, classify FLOP/PAPER offers (clean/bad/expired)
+  4. techbroker                   — tclk-offers scan + kibble analysis together
+  5. submit 9-queens              — solve 9-queens, submit accept+deliver+reveal (contract 0xdee5831f1e60f2fe600331)
+  6. quit
+----------------------------------------------------------------------
+choice>
+```
+
+All flags also work directly (e.g. `--tlck-offers`, `--submit`, `--publish`)
+without entering the menu.
 
 ### Snapshot tools
 
