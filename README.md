@@ -135,7 +135,7 @@ kibble-verifier — what do you want to do?
 choice>
 ```
 
-All flags also work directly (e.g. `--tlck-offers`, `--submit`, `--publish`)
+All flags also work directly (e.g. `--tlck-offers`, `--publish`)
 without entering the menu.
 
 ### Snapshot tools
@@ -483,6 +483,7 @@ until the pin is deliberately updated.
 ├── requirements.txt           # python deps (cryptography, base58)
 ├── .gitignore                 # keeps out/, .venv/, *.pem, *.bak out of git
 ├── LICENSE                    # MIT
+├── verify-signature.sh        # standalone Ed25519 signature verifier (reads identity.pem + passphrase.txt locally; not committed)
 ├── scripts/
 │   ├── run-schedule.sh        # cron wrapper
 │   ├── snapshot-query.py      # read + verify snapshots
@@ -495,6 +496,10 @@ until the pin is deliberately updated.
 │   ├── technocore-publish.py  # publish signed intro to /r/kibble
 │   ├── check-tclk-offers.py   # tclk-offers escrow scanner (FLOP/PAPER assurance)
 │   └── test-message-signing.py  # test suite for room message signing
+├── references/                 # tclk deal docs (lifecycle, payment assurance, signature encoding)
+│   ├── tclk-deal-lifecycle.md
+│   ├── tclk-payment-assurance.md
+│   └── tclk-signature-encoding.md
 └── tests/
     ├── fixture/
     │   ├── README.md          # pinned fixture docs
