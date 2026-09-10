@@ -896,17 +896,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="standalone tclk-offers scanner: fetch /r/tclk-offers and classify FLOP/PAPER offers for payment assurance (same logic as scripts/check-tclk-offers.py, built into the verifier)",
     )
-    parser.add_argument(
-        "--submit",
-        action="store_true",
-        help="run the 9-queens task submit script (scripts/submit-9queens.py) — solves 9-queens and submits accept+deliver+reveal for contract 0xdee5831f1e60f2fe600331",
-    )
     args = parser.parse_args(argv)
 
     # Interactive launcher: when no flags given, show menu and prompt for a sub-tool.
     # This is the "what do you want to do" prompt you asked for.
     if len(sys.argv) == 1 and not (args.dry_run or args.publish or args.schedule or
-                                  args.techbroker or args.tlck_offers or args.submit):
+                                  args.techbroker or args.tlck_offers):
         print("=" * 70)
         print("kibble-verifier — what do you want to do?")
         print("=" * 70)
@@ -914,8 +909,7 @@ def main(argv: list[str] | None = None) -> int:
         print("  2. kibble analysis + publish   — same, but also post signed CLAIM+DELIVER to /r/kibble")
         print("  3. tclk-offers scan             — fetch /r/tclk-offers, classify FLOP/PAPER offers (clean/bad/expired)")
         print("  4. techbroker                   — tclk-offers scan + kibble analysis together")
-        print("  5. submit 9-queens              — solve 9-queens, submit accept+deliver+reveal (contract 0xdee5831f1e60f2fe600331)")
-        print("  6. quit")
+        print("  5. quit")
         print("-" * 70)
         try:
             choice = input("choice> ").strip()
@@ -931,8 +925,6 @@ def main(argv: list[str] | None = None) -> int:
         elif choice == "4":
             args.techbroker = True
         elif choice == "5":
-            args.submit = True
-        elif choice == "6":
             return 0
         else:
             print(f"unknown choice: {choice!r}, exiting")
@@ -978,24 +970,6 @@ def main(argv: list[str] | None = None) -> int:
             scan = run_tclk_offers_scan(limit=300)
             print(json.dumps(scan, indent=2))
             return 0
-        if args.submit:
-            print(f"[{run_ts}] running submit-9queens.py ...", file=sys.stderr)
-            import subprocess, sys as _sys
-            repo_scripts = REPO_DIR / "scripts"
-            submit_script = repo_scripts / "submit-9queens.py"
-            if not submit_script.exists():
-                print(f"[{run_ts}] ERROR: scripts/submit-9queens.py not found", file=sys.stderr)
-                return 1
-            result = subprocess.run(
-                [_sys.executable, str(submit_script)],
-                cwd=str(REPO_DIR),
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
-            print(result.stdout, end="")
-            print(result.stderr, end="", file=sys.stderr)
-            return result.returncode
 
         # --- Fetch + analyze ---
         print(f"[{run_ts}] fetching /r/kibble/export ...", file=sys.stderr)

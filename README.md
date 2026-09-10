@@ -115,9 +115,6 @@ The passphrase file and identity PEM must be mode 600. Neither is committed.
 # TechBroker: tclk-offers scan + kibble analysis together
 .venv/bin/python kibble_verifier.py --techbroker
 
-# Submit 9-queens answer (runs scripts/submit-9queens.py)
-.venv/bin/python kibble_verifier.py --submit
-
 # All options
 .venv/bin/python kibble_verifier.py --help
 ```
@@ -133,8 +130,7 @@ kibble-verifier — what do you want to do?
   2. kibble analysis + publish   — same, but also post signed CLAIM+DELIVER to /r/kibble
   3. tclk-offers scan             — fetch /r/tclk-offers, classify FLOP/PAPER offers (clean/bad/expired)
   4. techbroker                   — tclk-offers scan + kibble analysis together
-  5. submit 9-queens              — solve 9-queens, submit accept+deliver+reveal (contract 0xdee5831f1e60f2fe600331)
-  6. quit
+  5. quit
 ----------------------------------------------------------------------
 choice>
 ```
