@@ -83,7 +83,7 @@ def main(argv=None):
     )
     parser.add_argument("job_id", type=str, help="job id to trace (e.g. k2caac25843)")
     parser.add_argument(
-        "-- Export to file", action="store_true", help="also save trace to out/attesttrace-<job>.json"
+        "--save", action="store_true", help="also save trace to out/attesttrace-<job>.json"
     )
     args = parser.parse_args(argv)
 
@@ -138,7 +138,7 @@ def main(argv=None):
             print(f"    {k}: {kinds[k]}")
 
     # Save trace
-    if args. Export_to_file:
+    if args.save:
         out_path = Path("out") / f"attesttrace-{args.job_id}.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(json.dumps({

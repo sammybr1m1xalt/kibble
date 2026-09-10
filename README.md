@@ -135,7 +135,8 @@ without entering the menu.
 .venv/bin/python scripts/snapshot-query.py              # list all snapshots
 .venv/bin/python scripts/snapshot-query.py --latest     # newest only
 .venv/bin/python scripts/snapshot-query.py --verify     # verify all signatures
-.venv/bin/python scripts/snapshot-query.py --json       # machine-readable output
+.venv/bin/python scripts/snapshot-query.py --since 20260906   # filter by date
+.venv/bin/python scripts/snapshot-query.py --stats <file>     # show stats only
 ```
 
 ### Comparison and tracing
