@@ -482,12 +482,22 @@ def write_signed_snapshot(
     run_ts: str,
     duration_s: float,
     out_dir: Path,
+    export_sha256: str = "",
+    export_generation: str = "",
 ) -> Path:
-    """Write a signed snapshot JSON to out/snapshots/<timestamp>.json."""
+    """Write a signed snapshot JSON to out/snapshots/<timestamp>.json.
+
+    The snapshot includes metric_spec_version, export_sha256, and
+    export_generation so that independent DIDs can cross-check the same
+    export generation (priority 5: multi-verifier, same spec).
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     snapshot = {
         "run_ts": run_ts,
         "did": did,
+        "metric_spec_version": "kibble-metrics/1",
+        "export_sha256": export_sha256,
+        "export_generation": export_generation or "unknown",
         "snapshot_hash": snap_hash,
         "signature": sig_b64,
         "fetch_duration_s": round(duration_s, 2),
