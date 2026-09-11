@@ -77,6 +77,8 @@ def build_digest_line(stats: dict, did: str, snap_hash: str, run_ts: str) -> str
         f"template={stats['canned_template_rate_pct']}% | "
         f"multi_claim={stats['multi_claim_rate_pct']}% | "
         f"no_delivery={stats['no_delivery_rate_pct']}% | "
+        f"self_attest={stats['self_attest_rate_pct']}% | "
+        f"dup_body={stats['duplicate_body_rate_pct']}% | "
         f"attest_senders={stats['attest_senders']} | "
         f"hash={snap_hash} | "
         f"spec={METRIC_SPEC_VERSION}"
@@ -242,8 +244,7 @@ def main(argv=None):
         local_path.write_text(json.dumps(local_payload, indent=2) + "\n")
         print(f"\n[{run_ts}] local snapshot: {local_path}", file=sys.stderr)
 
-        # Print both bodies to stdout (for logging / pipe)
-        print(latest_body, end="")
+        # Print the full dated note to stdout (for logging / pipe)
         print(dated_body, end="")
     else:
         # --- Full note body: digest line + signed snapshot JSON ---

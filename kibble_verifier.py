@@ -161,6 +161,7 @@ def analyze(rows: list[dict]) -> dict:
     jobs: set[str] = set()
     job_claims: Counter[str] = Counter()
     delivers_by_job: defaultdict[str, list[str]] = defaultdict(list)
+    dup_body_by_job: defaultdict[str, set[str]] = defaultdict(set)
     template_hits = 0
     template_total = 0
     attests_by_job: defaultdict[str, list[str]] = defaultdict(list)
@@ -187,10 +188,7 @@ def analyze(rows: list[dict]) -> dict:
             if jid:
                 body = text.split(" | ", 2)[-1].strip() if " | " in text else ""
                 delivers_by_job[jid].append(body)
-                low = body.lower()
-                if any(phrase in low for phrase in CANNED_PHRASES):
-                    template_hits += 1
-                template_total += 1
+                dup_body_by_job[jid].add(body)
 
         if kind == "ATTEST":
             attest_count += 1
@@ -222,6 +220,24 @@ def analyze(rows: list[dict]) -> dict:
     jobs_with_delivery = len(delivers_by_job)
     jobs_no_delivery = total_jobs - jobs_with_delivery
     no_delivery_rate = (jobs_no_delivery / total_jobs) if total_jobs else 0.0
+
+    # Self-attest rate: attest rows whose body is exactly "self"
+    _self_attest = 0
+    for row in rows:
+        if classify_line(row.get("text", "")) == "ATTEST":
+            body = attest_body_from_line(row.get("text", ""))
+            if body and body.strip().lower() == "self":
+                _self_attest += 1
+    self_attest_rate = (_self_attest / attest_count) if attest_count else 0.0
+
+    # Duplicate-body rate: deliveries whose body (exact) appears in 2+ distinct jobs
+    body_job_count: dict[str, int] = {}
+    for bodies in dup_body_by_job.values():
+        for b in bodies:
+            body_job_count[b] = body_job_count.get(b, 0) + 1
+    dup_delivery_jobs = sum(1 for jid, bodies in dup_body_by_job.items()
+                            if any(body_job_count.get(b, 0) >= 2 for b in bodies))
+    dup_rate = (dup_delivery_jobs / jobs_with_delivery) if jobs_with_delivery else 0.0
 
     # Per-sender reason reuse
     sender_reuse: list[dict] = []
@@ -261,6 +277,8 @@ def analyze(rows: list[dict]) -> dict:
         "no_delivery_rate_pct": round(no_delivery_rate * 100, 1),
         "attest_count": attest_count,
         "attest_senders": len(sender_reasons),
+        "self_attest_rate_pct": round(self_attest_rate * 100, 1),
+        "duplicate_body_rate_pct": round(dup_rate * 100, 1),
         "senders_with_low_diversity_reason_reuse": senders_with_low_diversity,
         "senders_reusing_one_reason": senders_with_one_reason,
         "sender_reuse_table": sender_reuse[:20],

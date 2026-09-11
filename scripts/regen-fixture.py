@@ -63,6 +63,8 @@ def main() -> int:
         "no_delivery_rate_pct": stats["no_delivery_rate_pct"],
         "attest_count": stats["attest_count"],
         "attest_senders": stats["attest_senders"],
+        "self_attest_rate_pct": stats["self_attest_rate_pct"],
+        "duplicate_body_rate_pct": stats["duplicate_body_rate_pct"],
         "senders_with_low_diversity_reason_reuse": stats[
             "senders_with_low_diversity_reason_reuse"
         ],
